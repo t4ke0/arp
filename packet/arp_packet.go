@@ -1,6 +1,7 @@
 package packet
 
 import (
+	"bytes"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -39,8 +40,11 @@ type Packet struct {
 var (
 	ErrWrongMACAddr  = errors.New("Wrong Hardware Address")
 	ErrWrongIPAddr   = errors.New("Wrong IP Address")
+	ErrNotBroadCast  = errors.New("Wrong dst mac addr")
 	ErrUnExpectedEOF = errors.New("UnExpected EOF")
 )
+
+var Brodcast = net.HardwareAddr{0xff, 0xff, 0xff, 0xff, 0xff, 0xff}
 
 func MakePacket(op OperationCode, srcHdwr net.HardwareAddr,
 	srcIP net.IP, dstHdwr net.HardwareAddr, dstIP net.IP) (*Packet, error) {
@@ -49,8 +53,8 @@ func MakePacket(op OperationCode, srcHdwr net.HardwareAddr,
 		return nil, ErrWrongMACAddr
 	}
 
-	if len(srcIP) != 16 || len(dstIP) != 16 {
-		return nil, ErrWrongIPAddr
+	if !bytes.Equal(Brodcast, dstHdwr) {
+		return nil, ErrNotBroadCast
 	}
 
 	return &Packet{
