@@ -7,3 +7,6 @@
 ### References
 - https://tools.ietf.org/html/rfc6747
 - https://github.com/mdlayher/raw/
+
+
+**NOTE** pkg still under developpement not yet completed
