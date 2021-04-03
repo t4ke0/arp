@@ -4,10 +4,12 @@ import (
 	"net"
 	"strings"
 
+	"github.com/mdlayher/ethernet"
 	"github.com/mdlayher/raw"
+
+	"arp/packet"
 )
 
-//TODO: Introduce sending packet.
 //TODO: Introduce receiving packet.
 
 const protocolARP = 0x0806
@@ -36,6 +38,33 @@ func New(netiface string) (*Client, error) {
 	}
 	client.conn = conn
 	return client, nil
+}
+
+func (c *Client) SendTO(pkt *packet.Packet, dst net.HardwareAddr) error {
+	data, err := pkt.Marshal()
+	if err != nil {
+		return err
+	}
+
+	frame := &ethernet.Frame{
+		Destination: dst,
+		Source:      pkt.SenderHdwAddr,
+		EtherType:   ethernet.EtherTypeARP,
+		Payload:     data,
+	}
+
+	frameBin, err := frame.MarshalBinary()
+	if err != nil {
+		return err
+	}
+
+	if c != nil {
+		if _, err := c.conn.WriteTo(frameBin, &raw.Addr{dst}); err != nil {
+			return err
+		}
+	}
+	return nil
+
 }
 
 func getInterfaceByName(netiface string, netifaces []net.Interface) (foundInterface net.Interface) {
