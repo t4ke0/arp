@@ -1,6 +1,7 @@
 package client
 
 import (
+	"bytes"
 	"net"
 	"strings"
 
@@ -10,15 +11,17 @@ import (
 	"arp/packet"
 )
 
-//TODO: Introduce receiving packet.
-
 const protocolARP = 0x0806
 
+//TODO: client need to have src ip addr and src mac addr as fields.
+
+// Client ...
 type Client struct {
 	ifc  net.Interface
 	conn *raw.Conn
 }
 
+// New ...
 func New(netiface string) (*Client, error) {
 	client := &Client{}
 	const defInterfaceIdx = 0
@@ -40,6 +43,7 @@ func New(netiface string) (*Client, error) {
 	return client, nil
 }
 
+// SendTO ...
 func (c *Client) SendTO(pkt *packet.Packet, dst net.HardwareAddr) error {
 	data, err := pkt.Marshal()
 	if err != nil {
@@ -65,6 +69,37 @@ func (c *Client) SendTO(pkt *packet.Packet, dst net.HardwareAddr) error {
 	}
 	return nil
 
+}
+
+// ResolveAddr ...
+func (c *Client) ResolveAddr(pkt *packet.Packet, dst net.HardwareAddr) (net.HardwareAddr, error) {
+	if err := c.SendTO(pkt, dst); err != nil {
+		return nil, err
+	}
+
+	buffer := make([]byte, 128)
+	eFrame := &ethernet.Frame{}
+
+	_, _, err := c.conn.ReadFrom(buffer)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := eFrame.UnmarshalBinary(buffer); err != nil {
+		return nil, err
+	}
+
+	if eFrame.EtherType == ethernet.EtherTypeARP {
+		respPkt := new(packet.Packet)
+		respPkt.Unmarshal(eFrame.Payload)
+		if respPkt.OP == packet.REPLY {
+			if bytes.Compare(pkt.TargetIP, respPkt.SenderIP) == 0 {
+				return respPkt.SenderHdwAddr, nil
+			}
+		}
+	}
+
+	return nil, nil
 }
 
 func getInterfaceByName(netiface string, netifaces []net.Interface) (foundInterface net.Interface) {
